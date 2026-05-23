@@ -345,7 +345,7 @@ pub fn toggle_userscript(app: AppHandle, id: String, enabled: bool) -> Result<()
 }
 
 #[command]
-pub fn open_userscript_manager(app: AppHandle) -> Result<(), String> {
+pub async fn open_userscript_manager(app: AppHandle) -> Result<(), String> {
     if let Some(existing_window) = app.get_webview_window("userscript-manager") {
         let _ = existing_window.unminimize();
         let _ = existing_window.show();
@@ -354,7 +354,7 @@ pub fn open_userscript_manager(app: AppHandle) -> Result<(), String> {
     }
 
     #[cfg(target_os = "windows")]
-    let url_str = "https://userscript.localhost";
+    let url_str = "http://userscript.localhost";
     #[cfg(not(target_os = "windows"))]
     let url_str = "userscript://localhost";
 

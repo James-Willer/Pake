@@ -48,8 +48,8 @@ pub fn set_system_tray(
             }
             "userscripts" => {
                 let app_handle = app.clone();
-                let _ = app.run_on_main_thread(move || {
-                    let _ = crate::app::invoke::open_userscript_manager(app_handle);
+                tauri::async_runtime::spawn(async move {
+                    let _ = crate::app::invoke::open_userscript_manager(app_handle).await;
                 });
             }
             "hide_app" => {
