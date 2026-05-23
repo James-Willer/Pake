@@ -606,6 +606,23 @@ console.log('Hello World!');`;
       document.getElementById('save-btn').textContent = 'Save Script';
     }
 
+    function parseResources(code) {
+      const resources = {};
+      const match = code.match(/\/\/\s*==UserScript==([\s\S]*?)\/\/\s*==\/UserScript==/);
+      if (!match) return resources;
+      
+      const lines = match[1].split('\n');
+      for (const line of lines) {
+        const parts = line.match(/\/\/\s*@resource\s+(\S+)\s+(.+)$/);
+        if (parts) {
+          const name = parts[1].trim();
+          const url = parts[2].trim();
+          resources[name] = url;
+        }
+      }
+      return resources;
+    }
+
     async function saveScript() {
       const name = document.getElementById('script-name').value.trim();
       const code = document.getElementById('script-code').value;
@@ -619,8 +636,40 @@ console.log('Hello World!');`;
         id,
         name,
         code,
-        enabled: true
+        enabled: true,
+        resources: {},
+        settings: {}
       };
+
+      if (editingScriptId) {
+        const existing = activeScripts.find(s => s.id === editingScriptId);
+        if (existing) {
+          newScript.settings = existing.settings || {};
+          newScript.resources = existing.resources || {};
+        }
+      }
+
+      const resourceUrls = parseResources(code);
+      const resourceNames = Object.keys(resourceUrls);
+      if (resourceNames.length > 0) {
+        showToast('Downloading resources...', 'success');
+        for (const resName of resourceNames) {
+          const resUrl = resourceUrls[resName];
+          try {
+            let resText = '';
+            if (window.__TAURI__) {
+              resText = await invokeTauri('fetch_remote_script', { url: resUrl });
+            } else {
+              const resResponse = await fetch(resUrl);
+              resText = await resResponse.text();
+            }
+            newScript.resources[resName] = resText;
+          } catch (err) {
+            console.error(`Failed to download resource ${resName} from ${resUrl}:`, err);
+            showToast(`Warning: failed to download resource: ${resName}`, 'error');
+          }
+        }
+      }
 
       try {
         await invokeTauri('save_userscript', { script: newScript });
@@ -644,14 +693,7 @@ console.log('Hello World!');`;
       try {
         let text = '';
         if (window.__TAURI__) {
-          const client = window.__TAURI__.http;
-          if (client && typeof client.fetch === 'function') {
-            const response = await client.fetch(url, { method: 'GET' });
-            text = await response.text();
-          } else {
-            const response = await fetch(url);
-            text = await response.text();
-          }
+          text = await invokeTauri('fetch_remote_script', { url });
         } else {
           const response = await fetch(url);
           text = await response.text();

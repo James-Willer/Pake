@@ -275,6 +275,10 @@ pub struct UserScript {
     pub name: String,
     pub code: String,
     pub enabled: bool,
+    #[serde(default)]
+    pub resources: std::collections::HashMap<String, String>,
+    #[serde(default)]
+    pub settings: std::collections::HashMap<String, serde_json::Value>,
 }
 
 #[command]
@@ -369,5 +373,124 @@ pub async fn open_userscript_manager(app: AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[command]
+pub async fn fetch_remote_script(url: String) -> Result<String, String> {
+    let client = ClientBuilder::new()
+        .build()
+        .map_err(|e| format!("Failed to build client: {}", e))?;
+
+    let parsed_url = Url::from_str(&url).map_err(|e| format!("Invalid URL: {}", e))?;
+    let request = Request::new(Method::GET, parsed_url);
+
+    let mut response = client.execute(request).await.map_err(|e| e.to_string())?;
+    
+    let mut body = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| format!("Failed to get chunk: {}", e))?
+    {
+        body.extend_from_slice(&chunk);
+    }
+    
+    let text = String::from_utf8(body).map_err(|e| format!("Invalid UTF-8 content: {}", e))?;
+    Ok(text)
+}
+
+#[command]
+pub fn save_userscript_setting(
+    app: AppHandle,
+    script_id: String,
+    key: String,
+    value: serde_json::Value,
+) -> Result<(), String> {
+    let mut scripts = get_userscripts(app.clone())?;
+    if let Some(pos) = scripts.iter().position(|s| s.id == script_id) {
+        scripts[pos].settings.insert(key, value);
+        
+        let (_, tauri_config) = crate::util::get_pake_config();
+        let package_name = tauri_config.product_name.clone().unwrap_or_else(|| "pake".to_string());
+        let data_dir = crate::util::get_data_dir(&app, package_name).map_err(|e| e.to_string())?;
+        let file_path = data_dir.join("userscripts.json");
+        
+        let content = serde_json::to_string_pretty(&scripts).map_err(|e| e.to_string())?;
+        fs::write(file_path, content).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[derive(serde::Deserialize)]
+pub struct HttpRequestDetails {
+    pub url: String,
+    pub method: String,
+    pub headers: Option<std::collections::HashMap<String, String>>,
+    pub body: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct HttpResponseDetails {
+    pub status: u16,
+    pub status_text: String,
+    pub headers: std::collections::HashMap<String, String>,
+    pub response_text: String,
+}
+
+#[command]
+pub async fn gm_xmlhttprequest(
+    details: HttpRequestDetails
+) -> Result<HttpResponseDetails, String> {
+    let client = ClientBuilder::new()
+        .build()
+        .map_err(|e| format!("Failed to build client: {}", e))?;
+
+    let parsed_url = Url::from_str(&details.url).map_err(|e| format!("Invalid URL: {}", e))?;
+    let method = Method::from_str(&details.method.to_uppercase()).map_err(|e| format!("Invalid method: {}", e))?;
+    
+    let mut request = Request::new(method, parsed_url);
+
+    if let Some(headers) = details.headers {
+        let req_headers = request.headers_mut();
+        for (k, v) in headers {
+            if let (Ok(name), Ok(val)) = (tauri::http::header::HeaderName::from_str(&k), tauri::http::header::HeaderValue::from_str(&v)) {
+                req_headers.insert(name, val);
+            }
+        }
+    }
+
+    if let Some(body) = details.body {
+        *request.body_mut() = Some(body.into_bytes().into());
+    }
+
+    let mut response = client.execute(request).await.map_err(|e| e.to_string())?;
+    
+    let status = response.status().as_u16();
+    let status_text = response.status().canonical_reason().unwrap_or("").to_string();
+    
+    let mut resp_headers = std::collections::HashMap::new();
+    for (name, val) in response.headers().iter() {
+        if let Ok(val_str) = val.to_str() {
+            resp_headers.insert(name.to_string(), val_str.to_string());
+        }
+    }
+
+    let mut body_bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| format!("Failed to get chunk: {}", e))?
+    {
+        body_bytes.extend_from_slice(&chunk);
+    }
+    
+    let response_text = String::from_utf8_lossy(&body_bytes).into_owned();
+
+    Ok(HttpResponseDetails {
+        status,
+        status_text,
+        headers: resp_headers,
+        response_text,
+    })
 }
 

@@ -16,7 +16,8 @@ use app::{
         clear_cache_and_restart, clear_dock_badge, download_file, download_file_by_binary,
         increment_dock_badge, send_notification, set_dock_badge, set_dock_badge_label,
         update_theme_mode, get_userscripts, save_userscript, delete_userscript,
-        toggle_userscript, open_userscript_manager,
+        toggle_userscript, open_userscript_manager, fetch_remote_script,
+        save_userscript_setting, gm_xmlhttprequest,
     },
     setup::{set_global_shortcut, set_system_tray},
     window::{open_additional_window_safe, set_window, MultiWindowState},
@@ -103,6 +104,9 @@ pub fn run_app() {
             delete_userscript,
             toggle_userscript,
             open_userscript_manager,
+            fetch_remote_script,
+            save_userscript_setting,
+            gm_xmlhttprequest,
         ])
         .setup(move |app| {
             app.manage(MultiWindowState::new(
