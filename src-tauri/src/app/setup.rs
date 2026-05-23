@@ -23,17 +23,18 @@ pub fn set_system_tray(
     }
 
     let new_window = MenuItemBuilder::with_id("new_window", "New Window").build(app)?;
+    let userscripts = MenuItemBuilder::with_id("userscripts", "Userscript Manager").build(app)?;
     let hide_app = MenuItemBuilder::with_id("hide_app", "Hide").build(app)?;
     let show_app = MenuItemBuilder::with_id("show_app", "Show").build(app)?;
     let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
 
     let menu = if allow_multi_window {
         MenuBuilder::new(app)
-            .items(&[&new_window, &hide_app, &show_app, &quit])
+            .items(&[&new_window, &userscripts, &hide_app, &show_app, &quit])
             .build()?
     } else {
         MenuBuilder::new(app)
-            .items(&[&hide_app, &show_app, &quit])
+            .items(&[&userscripts, &hide_app, &show_app, &quit])
             .build()?
     };
 
@@ -44,6 +45,11 @@ pub fn set_system_tray(
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "new_window" => {
                 open_additional_window_safe(app);
+            }
+            "userscripts" => {
+                let _ = app.run_on_main_thread(move |app_handle| {
+                    let _ = crate::app::invoke::open_userscript_manager(app_handle.clone());
+                });
             }
             "hide_app" => {
                 if let Some(window) = app.get_webview_window("pake") {

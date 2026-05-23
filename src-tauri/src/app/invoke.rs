@@ -268,3 +268,114 @@ pub fn clear_cache_and_restart(app: AppHandle) -> Result<(), String> {
         Err("Main window not found".to_string())
     }
 }
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct UserScript {
+    pub id: String,
+    pub name: String,
+    pub code: String,
+    pub enabled: bool,
+}
+
+#[command]
+pub fn get_userscripts(app: AppHandle) -> Result<Vec<UserScript>, String> {
+    let (_, tauri_config) = crate::util::get_pake_config();
+    let package_name = tauri_config.product_name.clone().unwrap_or_else(|| "pake".to_string());
+    let data_dir = crate::util::get_data_dir(&app, package_name).map_err(|e| e.to_string())?;
+    let file_path = data_dir.join("userscripts.json");
+
+    if !file_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
+    let scripts: Vec<UserScript> = serde_json::from_str(&content).unwrap_or_else(|_| Vec::new());
+    Ok(scripts)
+}
+
+#[command]
+pub fn save_userscript(app: AppHandle, script: UserScript) -> Result<(), String> {
+    let (_, tauri_config) = crate::util::get_pake_config();
+    let package_name = tauri_config.product_name.clone().unwrap_or_else(|| "pake".to_string());
+    let data_dir = crate::util::get_data_dir(&app, package_name).map_err(|e| e.to_string())?;
+    let file_path = data_dir.join("userscripts.json");
+
+    let mut scripts = get_userscripts(app.clone())?;
+    if let Some(pos) = scripts.iter().position(|s| s.id == script.id) {
+        scripts[pos] = script;
+    } else {
+        scripts.push(script);
+    }
+
+    let content = serde_json::to_string_pretty(&scripts).map_err(|e| e.to_string())?;
+    fs::write(file_path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[command]
+pub fn delete_userscript(app: AppHandle, id: String) -> Result<(), String> {
+    let (_, tauri_config) = crate::util::get_pake_config();
+    let package_name = tauri_config.product_name.clone().unwrap_or_else(|| "pake".to_string());
+    let data_dir = crate::util::get_data_dir(&app, package_name).map_err(|e| e.to_string())?;
+    let file_path = data_dir.join("userscripts.json");
+
+    let mut scripts = get_userscripts(app.clone())?;
+    scripts.retain(|s| s.id != id);
+
+    let content = serde_json::to_string_pretty(&scripts).map_err(|e| e.to_string())?;
+    fs::write(file_path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[command]
+pub fn toggle_userscript(app: AppHandle, id: String, enabled: bool) -> Result<(), String> {
+    let (_, tauri_config) = crate::util::get_pake_config();
+    let package_name = tauri_config.product_name.clone().unwrap_or_else(|| "pake".to_string());
+    let data_dir = crate::util::get_data_dir(&app, package_name).map_err(|e| e.to_string())?;
+    let file_path = data_dir.join("userscripts.json");
+
+    let mut scripts = get_userscripts(app.clone())?;
+    if let Some(pos) = scripts.iter().position(|s| s.id == id) {
+        scripts[pos].enabled = enabled;
+    }
+
+    let content = serde_json::to_string_pretty(&scripts).map_err(|e| e.to_string())?;
+    fs::write(file_path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn percent_encode(s: &str) -> String {
+    let mut result = String::new();
+    for b in s.bytes() {
+        match b {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => result.push(b as char),
+            _ => result.push_str(&format!("%{:02X}", b)),
+        }
+    }
+    result
+}
+
+#[command]
+pub fn open_userscript_manager(app: AppHandle) -> Result<(), String> {
+    if let Some(existing_window) = app.get_webview_window("userscript-manager") {
+        let _ = existing_window.unminimize();
+        let _ = existing_window.show();
+        let _ = existing_window.set_focus();
+        return Ok(());
+    }
+
+    let manager_html = include_str!("../inject/userscript_manager.html");
+    let url_str = format!("data:text/html;charset=utf-8,{}", percent_encode(manager_html));
+    let url = Url::parse(&url_str).map_err(|e| e.to_string())?;
+
+    let _window = tauri::WebviewWindowBuilder::new(&app, "userscript-manager", tauri::WebviewUrl::External(url))
+        .title("Userscript Manager")
+        .inner_size(800.0, 600.0)
+        .resizable(true)
+        .focused(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+

@@ -294,6 +294,7 @@ fn build_window(
         .initialization_script(include_str!("../inject/style.js"))
         .initialization_script(include_str!("../inject/theme_refresh.js"))
         .initialization_script(include_str!("../inject/auth.js"))
+        .initialization_script(include_str!("../inject/userscript_loader.js"))
         .initialization_script(include_str!("../inject/custom.js"));
 
     #[cfg(target_os = "windows")]

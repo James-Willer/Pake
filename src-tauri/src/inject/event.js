@@ -324,6 +324,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  document.addEventListener("keydown", (event) => {
+    const isMac = /macintosh|mac os x/i.test(navigator.userAgent);
+    const isModifier = isMac ? event.metaKey : event.ctrlKey;
+    if (isModifier && event.shiftKey && (event.key === 'U' || event.key === 'u')) {
+      event.preventDefault();
+      tauri.core.invoke("open_userscript_manager").catch(err => console.error(err));
+    }
+  });
+
   document.addEventListener(
     "paste",
     (event) => {
