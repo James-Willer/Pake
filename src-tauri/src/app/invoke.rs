@@ -353,7 +353,12 @@ pub fn open_userscript_manager(app: AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    let url = Url::parse("userscript://localhost").map_err(|e| e.to_string())?;
+    #[cfg(target_os = "windows")]
+    let url_str = "https://userscript.localhost";
+    #[cfg(not(target_os = "windows"))]
+    let url_str = "userscript://localhost";
+
+    let url = Url::parse(url_str).map_err(|e| e.to_string())?;
 
     let _window = tauri::WebviewWindowBuilder::new(&app, "userscript-manager", tauri::WebviewUrl::External(url))
         .title("Userscript Manager")
