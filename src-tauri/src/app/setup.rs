@@ -47,8 +47,9 @@ pub fn set_system_tray(
                 open_additional_window_safe(app);
             }
             "userscripts" => {
-                let _ = app.run_on_main_thread(move |app_handle| {
-                    let _ = crate::app::invoke::open_userscript_manager(app_handle.clone());
+                let app_handle = app.clone();
+                let _ = app.run_on_main_thread(move || {
+                    let _ = crate::app::invoke::open_userscript_manager(app_handle);
                 });
             }
             "hide_app" => {
