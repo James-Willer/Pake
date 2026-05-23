@@ -279,6 +279,8 @@ pub struct UserScript {
     pub resources: std::collections::HashMap<String, String>,
     #[serde(default)]
     pub settings: std::collections::HashMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub requires: Vec<String>,
 }
 
 #[command]
@@ -492,5 +494,59 @@ pub async fn gm_xmlhttprequest(
         headers: resp_headers,
         response_text,
     })
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct RegisteredCommand {
+    pub script_id: String,
+    pub name: String,
+}
+
+static REGISTERED_COMMANDS: std::sync::Mutex<Vec<RegisteredCommand>> = std::sync::Mutex::new(Vec::new());
+
+#[command]
+pub fn clear_menu_commands() {
+    if let Ok(mut cmds) = REGISTERED_COMMANDS.lock() {
+        cmds.clear();
+    }
+}
+
+#[command]
+pub fn register_menu_command(script_id: String, name: String) {
+    if let Ok(mut cmds) = REGISTERED_COMMANDS.lock() {
+        if !cmds.iter().any(|c| c.script_id == script_id && c.name == name) {
+            cmds.push(RegisteredCommand { script_id, name });
+        }
+    }
+}
+
+#[command]
+pub fn unregister_menu_command(script_id: String, name: String) {
+    if let Ok(mut cmds) = REGISTERED_COMMANDS.lock() {
+        cmds.retain(|c| !(c.script_id == script_id && c.name == name));
+    }
+}
+
+#[command]
+pub fn get_registered_menu_commands() -> Vec<RegisteredCommand> {
+    if let Ok(cmds) = REGISTERED_COMMANDS.lock() {
+        cmds.clone()
+    } else {
+        Vec::new()
+    }
+}
+
+#[command]
+pub fn trigger_menu_command(app: AppHandle, script_id: String, name: String) {
+    for window in app.webview_windows().values() {
+        if window.label().starts_with("pake") {
+            let js = format!(
+                "if (window.__pake_trigger_menu_command) {{ window.__pake_trigger_menu_command('{}', '{}'); }}",
+                script_id.replace('\'', "\\'").replace('"', "\\\""),
+                name.replace('\'', "\\'").replace('"', "\\\"")
+            );
+            let _ = window.eval(&js);
+        }
+    }
 }
 

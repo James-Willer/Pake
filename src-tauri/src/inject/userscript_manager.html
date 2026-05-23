@@ -135,8 +135,56 @@
       border-radius: 8px;
       padding: 1rem 1.25rem;
       display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .script-card-header {
+      display: flex;
       align-items: center;
       justify-content: space-between;
+      width: 100%;
+    }
+
+    .script-commands-section {
+      border-top: 1px solid var(--panel-border);
+      padding-top: 0.75rem;
+      display: none;
+      flex-direction: column;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .script-commands-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .script-commands-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .command-btn {
+      background: #1e1e24;
+      border: 1px solid #2d2d34;
+      color: #f1f5f9;
+      padding: 0.35rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .command-btn:hover {
+      background: var(--primary);
+      border-color: transparent;
+      color: #fff;
     }
 
     .script-info {
@@ -490,9 +538,16 @@ console.log('Hello World!');"></textarea>
       }
     }
 
+    let registeredCommands = [];
+
     async function loadScripts() {
       try {
         activeScripts = await invokeTauri('get_userscripts') || [];
+        try {
+          registeredCommands = await invokeTauri('get_registered_menu_commands') || [];
+        } catch (e) {
+          console.error("Failed to load registered commands:", e);
+        }
         renderScriptsList();
       } catch (e) {
         console.error(e);
@@ -531,28 +586,78 @@ console.log('Hello World!');"></textarea>
         const matches = parseMatches(script.code);
         return `
           <div class="script-card">
-            <div class="script-info">
-              <div class="script-name">${escapeHtml(script.name)}</div>
-              <div class="script-meta">
-                ${matches.map(m => `<span class="script-tag" title="${escapeHtml(m)}">${escapeHtml(m)}</span>`).join('')}
+            <div class="script-card-header">
+              <div class="script-info">
+                <div class="script-name">${escapeHtml(script.name)}</div>
+                <div class="script-meta">
+                  ${matches.map(m => `<span class="script-tag" title="${escapeHtml(m)}">${escapeHtml(m)}</span>`).join('')}
+                </div>
+              </div>
+              <div class="script-actions">
+                <label class="switch">
+                  <input type="checkbox" ${script.enabled ? 'checked' : ''} onchange="toggleScript('${script.id}', this.checked)">
+                  <span class="slider"></span>
+                </label>
+                <button class="icon-btn" onclick="startEdit('${script.id}')" title="Edit Script">
+                  <svg viewBox="0 0 24 24" class="icon" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </button>
+                <button class="icon-btn delete" onclick="deleteScript('${script.id}')" title="Delete Script">
+                  <svg viewBox="0 0 24 24" class="icon" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </button>
               </div>
             </div>
-            <div class="script-actions">
-              <label class="switch">
-                <input type="checkbox" ${script.enabled ? 'checked' : ''} onchange="toggleScript('${script.id}', this.checked)">
-                <span class="slider"></span>
-              </label>
-              <button class="icon-btn" onclick="startEdit('${script.id}')" title="Edit Script">
-                <svg viewBox="0 0 24 24" class="icon" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-              </button>
-              <button class="icon-btn delete" onclick="deleteScript('${script.id}')" title="Delete Script">
-                <svg viewBox="0 0 24 24" class="icon" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-              </button>
-            </div>
+            <div class="script-commands-section" id="commands-${script.id}"></div>
           </div>
         `;
       }).join('');
+
+      renderMenuCommandsOnly();
     }
+
+    function renderMenuCommandsOnly() {
+      activeScripts.forEach(script => {
+        const cmdContainer = document.getElementById(`commands-${script.id}`);
+        if (!cmdContainer) return;
+
+        const scriptCmds = registeredCommands.filter(c => c.script_id === script.id);
+        if (scriptCmds.length === 0) {
+          cmdContainer.style.display = 'none';
+          cmdContainer.innerHTML = '';
+          return;
+        }
+
+        cmdContainer.style.display = 'flex';
+        cmdContainer.innerHTML = `
+          <div class="script-commands-title">Settings & Commands</div>
+          <div class="script-commands-list">
+            ${scriptCmds.map(cmd => `
+              <button class="command-btn" onclick="triggerCommand('${script.id}', '${escapeHtml(cmd.name)}')">
+                ${escapeHtml(cmd.name)}
+              </button>
+            `).join('')}
+          </div>
+        `;
+      });
+    }
+
+    async function triggerCommand(scriptId, name) {
+      try {
+        await invokeTauri('trigger_menu_command', { scriptId, name });
+        showToast(`Triggered: ${name}`, 'success');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Periodically update active commands
+    setInterval(async () => {
+      if (document.getElementById('tab-list').classList.contains('active')) {
+        try {
+          registeredCommands = await invokeTauri('get_registered_menu_commands') || [];
+          renderMenuCommandsOnly();
+        } catch (e) {}
+      }
+    }, 1500);
 
     async function toggleScript(id, enabled) {
       try {
@@ -623,6 +728,21 @@ console.log('Hello World!');`;
       return resources;
     }
 
+    function parseRequires(code) {
+      const requires = [];
+      const match = code.match(/\/\/\s*==UserScript==([\s\S]*?)\/\/\s*==\/UserScript==/);
+      if (!match) return requires;
+      
+      const lines = match[1].split('\n');
+      for (const line of lines) {
+        const parts = line.match(/\/\/\s*@require\s+(.+)$/);
+        if (parts) {
+          requires.push(parts[1].trim());
+        }
+      }
+      return requires;
+    }
+
     async function saveScript() {
       const name = document.getElementById('script-name').value.trim();
       const code = document.getElementById('script-code').value;
@@ -638,7 +758,8 @@ console.log('Hello World!');`;
         code,
         enabled: true,
         resources: {},
-        settings: {}
+        settings: {},
+        requires: []
       };
 
       if (editingScriptId) {
@@ -646,6 +767,7 @@ console.log('Hello World!');`;
         if (existing) {
           newScript.settings = existing.settings || {};
           newScript.resources = existing.resources || {};
+          newScript.requires = existing.requires || [];
         }
       }
 
@@ -667,6 +789,28 @@ console.log('Hello World!');`;
           } catch (err) {
             console.error(`Failed to download resource ${resName} from ${resUrl}:`, err);
             showToast(`Warning: failed to download resource: ${resName}`, 'error');
+          }
+        }
+      }
+
+      const requireUrls = parseRequires(code);
+      if (requireUrls.length > 0) {
+        showToast('Downloading required libraries...', 'success');
+        newScript.requires = [];
+        for (const reqUrl of requireUrls) {
+          const cleanUrl = reqUrl.split('#')[0];
+          try {
+            let reqText = '';
+            if (window.__TAURI__) {
+              reqText = await invokeTauri('fetch_remote_script', { url: cleanUrl });
+            } else {
+              const reqResponse = await fetch(cleanUrl);
+              reqText = await reqResponse.text();
+            }
+            newScript.requires.push(reqText);
+          } catch (err) {
+            console.error(`Failed to download require ${reqUrl}:`, err);
+            showToast(`Warning: failed to download required library`, 'error');
           }
         }
       }
