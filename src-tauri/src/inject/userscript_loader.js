@@ -13,7 +13,9 @@
     }
 
     // Clear previous page's menu commands on load
-    window.__TAURI__.core.invoke("clear_menu_commands").catch(() => {});
+    if (window.top === window) {
+      window.__TAURI__.core.invoke("clear_menu_commands").catch(() => {});
+    }
 
     const scripts = await window.__TAURI__.core.invoke("get_userscripts");
     if (!scripts || !Array.isArray(scripts)) return;
@@ -173,24 +175,40 @@
               };
             };
 
+            let menuCommandIdCounter = 1;
+            const menuCommandIdMap = new Map();
+
             const GM_registerMenuCommand = (name, fn) => {
-              window.__pake_registered_callbacks[script.id + '::' + name] = fn;
-              window.__TAURI__.core.invoke("register_menu_command", { scriptId: script.id, name: name })
+              const id = menuCommandIdCounter++;
+              const nameStr = name.toString();
+              menuCommandIdMap.set(id, nameStr);
+              window.__pake_registered_callbacks[script.id + '::' + nameStr] = fn;
+              window.__TAURI__.core.invoke("register_menu_command", { scriptId: script.id, name: nameStr })
                 .catch(err => console.error("[Pake Userscript] GM_registerMenuCommand error:", err));
+              return id;
             };
 
-            const GM_unregisterMenuCommand = (name) => {
-              delete window.__pake_registered_callbacks[script.id + '::' + name];
-              window.__TAURI__.core.invoke("unregister_menu_command", { scriptId: script.id, name: name })
+            const GM_unregisterMenuCommand = (id) => {
+              const nameStr = menuCommandIdMap.get(id) || (id ? id.toString() : '');
+              delete window.__pake_registered_callbacks[script.id + '::' + nameStr];
+              window.__TAURI__.core.invoke("unregister_menu_command", { scriptId: script.id, name: nameStr })
                 .catch(err => console.error("[Pake Userscript] GM_unregisterMenuCommand error:", err));
             };
 
             const GM_xmlhttpRequest = (details) => {
+              const cleanedHeaders = {};
+              if (details.headers) {
+                for (const [k, v] of Object.entries(details.headers)) {
+                  if (v !== null && v !== undefined) {
+                    cleanedHeaders[k] = v.toString();
+                  }
+                }
+              }
               const invokeArgs = {
                 details: {
                   url: details.url,
                   method: details.method || 'GET',
-                  headers: details.headers || {},
+                  headers: cleanedHeaders,
                   body: details.data || null,
                 }
               };
