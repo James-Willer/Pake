@@ -344,17 +344,6 @@ pub fn toggle_userscript(app: AppHandle, id: String, enabled: bool) -> Result<()
     Ok(())
 }
 
-fn percent_encode(s: &str) -> String {
-    let mut result = String::new();
-    for b in s.bytes() {
-        match b {
-            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => result.push(b as char),
-            _ => result.push_str(&format!("%{:02X}", b)),
-        }
-    }
-    result
-}
-
 #[command]
 pub fn open_userscript_manager(app: AppHandle) -> Result<(), String> {
     if let Some(existing_window) = app.get_webview_window("userscript-manager") {
@@ -364,9 +353,7 @@ pub fn open_userscript_manager(app: AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    let manager_html = include_str!("../inject/userscript_manager.html");
-    let url_str = format!("data:text/html;charset=utf-8,{}", percent_encode(manager_html));
-    let url = Url::parse(&url_str).map_err(|e| e.to_string())?;
+    let url = Url::parse("userscript://localhost").map_err(|e| e.to_string())?;
 
     let _window = tauri::WebviewWindowBuilder::new(&app, "userscript-manager", tauri::WebviewUrl::External(url))
         .title("Userscript Manager")

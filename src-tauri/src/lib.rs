@@ -79,6 +79,14 @@ pub fn run_app() {
         ));
     }
 
+    app_builder = app_builder.register_uri_scheme_protocol("userscript", move |_app, _request| {
+        let html = include_str!("inject/userscript_manager.html");
+        tauri::http::Response::builder()
+            .header("Content-Type", "text/html; charset=utf-8")
+            .body(html.as_bytes().to_vec())
+            .unwrap()
+    });
+
     app_builder
         .invoke_handler(tauri::generate_handler![
             download_file,
