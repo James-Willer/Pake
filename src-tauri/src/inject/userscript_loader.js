@@ -409,7 +409,7 @@
             let menuCommandIdCounter = 1;
             const menuCommandIdMap = new Map();
 
-            const GM_registerMenuCommand = (name, fn) => {
+            const GM_registerMenuCommand = (name, fn, options) => {
               const id = menuCommandIdCounter++;
               const nameStr = name.toString();
               menuCommandIdMap.set(id, nameStr);
@@ -525,3 +525,4 @@
     console.error('[Pake Userscript Loader] Error:', err);
   }
 })();
+;

@@ -340,7 +340,7 @@
             d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 01-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 010 8c0-4.42 3.58-8 8-8Z"
           ></path>
         </svg>
-        <h1>ScriptCat @ Pake</h1>
+        <h1>Userscript @ Pake</h1>
       </div>
       <div class="nav-tabs">
         <button class="tab-btn active" data-tab="scripts">Scripts</button>
@@ -473,6 +473,19 @@
       </div>
     </main>
 
+    <div id="values-modal" class="modal">
+      <div class="modal-content" style="max-width: 600px;">
+        <h2 id="values-modal-title">Script Settings</h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">View and edit the stored data for this script (GM_getValue).</p>
+        <div id="values-list" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem;">
+          <!-- Settings rows will be injected here -->
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+          <button class="btn" onclick="closeValuesModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div id="toast" class="toast">Action completed successfully</div>
 
     <script>
@@ -574,7 +587,8 @@
             </label>
           </div>
           <div class="script-actions">
-            <button class="btn" onclick="editScript('${script.id}')">Edit</button>
+            <button class="btn" onclick="editScript('${script.id}')">Edit Code</button>
+            <button class="btn" onclick="editValues('${script.id}')">Settings (Data)</button>
             <button class="btn btn-danger" onclick="deleteScript('${script.id}')">Delete</button>
           </div>
         `;
@@ -609,6 +623,71 @@
         document.getElementById("editor-script-name").value = script.name;
         document.getElementById("script-editor").value = script.code;
         document.querySelector('[data-tab="editor"]').click();
+      };
+
+      window.editValues = (id) => {
+        const script = currentScripts.find((s) => s.id === id);
+        if (!script) return;
+        
+        const modal = document.getElementById("values-modal");
+        const list = document.getElementById("values-list");
+        document.getElementById("values-modal-title").textContent = `Data: ${script.name}`;
+        
+        list.innerHTML = "";
+        const settings = script.settings || {};
+        const keys = Object.keys(settings);
+        
+        if (keys.length === 0) {
+          list.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 1rem;">No data stored for this script yet.</p>';
+        } else {
+          keys.forEach(key => {
+            const val = settings[key];
+            const row = document.createElement("div");
+            row.style.cssText = "display: flex; align-items: center; gap: 0.5rem; background: var(--panel); border: 1px solid var(--panel-border); padding: 0.5rem; border-radius: 6px;";
+            
+            const label = document.createElement("div");
+            label.textContent = key;
+            label.style.cssText = "flex: 1; font-family: var(--font-mono); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis;";
+            
+            const input = document.createElement("input");
+            input.type = "text";
+            input.style.flex = "2";
+            input.style.fontSize = "0.8rem";
+            input.style.padding = "0.3rem 0.5rem";
+            input.value = typeof val === 'string' ? val : JSON.stringify(val);
+            
+            const saveBtn = document.createElement("button");
+            saveBtn.className = "btn btn-primary";
+            saveBtn.textContent = "Save";
+            saveBtn.style.padding = "0.2rem 0.5rem";
+            saveBtn.onclick = async () => {
+              let parsedVal;
+              try {
+                parsedVal = JSON.parse(input.value);
+              } catch(e) {
+                parsedVal = input.value; // Treat as string if not valid JSON
+              }
+              try {
+                await invoke("save_userscript_setting", { scriptId: id, key, value: parsedVal });
+                showToast(`Saved ${key}`);
+                loadScripts(); // Refresh local data
+              } catch(e) {
+                showToast(`Error: ${e}`);
+              }
+            };
+
+            row.appendChild(label);
+            row.appendChild(input);
+            row.appendChild(saveBtn);
+            list.appendChild(row);
+          });
+        }
+        
+        modal.classList.add("active");
+      };
+
+      window.closeValuesModal = () => {
+        document.getElementById("values-modal").classList.remove("active");
       };
 
       document
@@ -665,6 +744,71 @@
               ? "Author: " + meta.author
               : "";
             document.getElementById("install-preview").style.display = "block";
+          } catch (e) {
+            showToast("Error fetching script: " + e);
+          }
+        });
+
+      document
+        .getElementById("confirm-install")
+        .addEventListener("click", async () => {
+          const meta = parseMetadata(fetchedCode);
+          showToast("Installing script and dependencies...");
+
+          const requires = [];
+          for (const url of meta.requires) {
+            try {
+              const code = await invoke("fetch_remote_script", { url });
+              requires.push(code);
+            } catch (e) {
+              console.warn("Failed to fetch require:", url, e);
+            }
+          }
+
+          const resources = {};
+          for (const [name, url] of Object.entries(meta.resources)) {
+            try {
+              const content = await invoke("fetch_remote_script", { url });
+              resources[name] = content;
+            } catch (e) {
+              console.warn("Failed to fetch resource:", name, url, e);
+            }
+          }
+
+          const scriptData = {
+            id: Date.now().toString(),
+            name: meta.name,
+            code: fetchedCode,
+            enabled: true,
+            description: meta.description,
+            version: meta.version,
+            author: meta.author,
+            homepage: meta.homepage,
+            icon: meta.icon,
+            requires: requires,
+            resources: resources,
+            settings: {},
+          };
+
+          try {
+            await invoke("save_userscript", { script: scriptData });
+            showToast("Script installed successfully");
+            document.getElementById("install-preview").style.display = "none";
+            document.getElementById("install-url").value = "";
+            loadScripts();
+            document.querySelector('[data-tab="scripts"]').click();
+          } catch (e) {
+            showToast("Error installing script: " + e);
+          }
+        });
+
+      // Initial load
+      loadCommands();
+      loadScripts();
+    </script>
+  </body>
+</html>
+.style.display = "block";
           } catch (e) {
             showToast("Error fetching script: " + e);
           }

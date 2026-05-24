@@ -1005,8 +1005,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Show custom menu for media, links, or if there are registered userscript menu commands
       if (mediaInfo.isMedia || isLink || registeredCmds.length > 0) {
+        // If event was already prevented by a userscript or other listener, don't show Pake menu
+        if (event.defaultPrevented) {
+          return;
+        }
+
         event.preventDefault();
-        event.stopPropagation();
 
         let menuItems = [];
 
@@ -1047,7 +1051,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       // For all other elements, let browser's default context menu handle it
     },
-    true,
+    false,
   );
 
   // Hide context menu when clicking elsewhere
