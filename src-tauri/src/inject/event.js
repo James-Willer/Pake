@@ -701,6 +701,11 @@ document.addEventListener("DOMContentLoaded", () => {
     downloadFile: isChinese ? "下载文件" : "Download File",
     copyAddress: isChinese ? "复制地址" : "Copy Address",
     openInBrowser: isChinese ? "浏览器打开" : "Open in Browser",
+    userscriptManager: isChinese ? "脚本管理" : "Userscript Manager",
+    reload: isChinese ? "刷新" : "Reload",
+    inspectElement: isChinese ? "检查" : "Inspect Element",
+    back: isChinese ? "后退" : "Back",
+    forward: isChinese ? "前进" : "Forward",
   };
 
   // Menu theme configuration
@@ -1003,53 +1008,72 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const registeredCmds = window.__pake_registered_callbacks ? Object.keys(window.__pake_registered_callbacks) : [];
 
-      // Show custom menu for media, links, or if there are registered userscript menu commands
-      if (mediaInfo.isMedia || isLink || registeredCmds.length > 0) {
-        // If event was already prevented by a userscript or other listener, don't show Pake menu
-        if (event.defaultPrevented) {
-          return;
-        }
-
-        event.preventDefault();
-
-        let menuItems = [];
-
-        if (mediaInfo.isMedia) {
-          menuItems = buildMenuItems("media", mediaInfo);
-        } else if (isLink) {
-          const linkUrl = linkElement.href;
-          menuItems = buildMenuItems("link", {
-            url: linkUrl,
-            isFile: isDownloadableFile(linkUrl),
-          });
-        }
-
-        if (registeredCmds.length > 0) {
-          if (menuItems.length > 0) {
-            const lastItem = menuItems[menuItems.length - 1];
-            const styles = getMenuStyles();
-            lastItem.style.borderBottom = `1px solid ${styles.item.divider}`;
-            lastItem.style.paddingBottom = "12px";
-            lastItem.style.marginBottom = "6px";
-          }
-
-          registeredCmds.forEach((key) => {
-            const parts = key.split('::');
-            const displayName = parts.slice(1).join('::');
-            const fn = window.__pake_registered_callbacks[key];
-            menuItems.push(createMenuItem(displayName, () => {
-              try {
-                fn();
-              } catch (e) {
-                console.error(`[Pake Userscript] Error running menu command:`, e);
-              }
-            }));
-          });
-        }
-
-        showContextMenu(event.clientX, event.clientY, menuItems);
+      // If event was already prevented by a userscript or other listener, don't show Pake menu
+      if (event.defaultPrevented) {
+        return;
       }
-      // For all other elements, let browser's default context menu handle it
+
+      event.preventDefault();
+
+      let menuItems = [];
+
+      if (mediaInfo.isMedia) {
+        menuItems = buildMenuItems("media", mediaInfo);
+      } else if (isLink) {
+        const linkUrl = linkElement.href;
+        menuItems = buildMenuItems("link", {
+          url: linkUrl,
+          isFile: isDownloadableFile(linkUrl),
+        });
+      }
+
+      if (registeredCmds.length > 0) {
+        if (menuItems.length > 0) {
+          const lastItem = menuItems[menuItems.length - 1];
+          const styles = getMenuStyles();
+          lastItem.style.borderBottom = `1px solid ${styles.item.divider}`;
+          lastItem.style.paddingBottom = "12px";
+          lastItem.style.marginBottom = "6px";
+        }
+
+        registeredCmds.forEach((key) => {
+          const parts = key.split('::');
+          const displayName = parts.slice(1).join('::');
+          const fn = window.__pake_registered_callbacks[key];
+          menuItems.push(createMenuItem(displayName, () => {
+            try {
+              fn();
+            } catch (e) {
+              console.error(`[Pake Userscript] Error running menu command:`, e);
+            }
+          }));
+        });
+      }
+
+      // Add default menu items (Back, Forward, Reload, Userscript Manager, Inspect Element)
+      if (menuItems.length > 0) {
+        const lastItem = menuItems[menuItems.length - 1];
+        const styles = getMenuStyles();
+        lastItem.style.borderBottom = `1px solid ${styles.item.divider}`;
+        lastItem.style.paddingBottom = "12px";
+        lastItem.style.marginBottom = "6px";
+      }
+
+      menuItems.push(createMenuItem(menuTexts.back, () => window.history.back()));
+      menuItems.push(createMenuItem(menuTexts.forward, () => window.history.forward()));
+      menuItems.push(createMenuItem(menuTexts.reload, () => window.location.reload()));
+      
+      menuItems.push(createMenuItem(menuTexts.userscriptManager, () => {
+        invoke("open_userscript_manager").catch(err => console.error(err));
+      }));
+
+      if (pakeConfig.debug) {
+        menuItems.push(createMenuItem(menuTexts.inspectElement, () => {
+          invoke("plugin:webview|toggle_devtools").catch(() => {});
+        }));
+      }
+
+      showContextMenu(event.clientX, event.clientY, menuItems);
     },
     false,
   );
