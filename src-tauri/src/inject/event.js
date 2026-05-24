@@ -1001,8 +1001,10 @@ document.addEventListener("DOMContentLoaded", () => {
           : null;
       const isLink = linkElement && linkElement.href && !mediaInfo.isMedia;
 
-      // Only show custom menu for media or links
-      if (mediaInfo.isMedia || isLink) {
+      const registeredCmds = window.__pake_registered_callbacks ? Object.keys(window.__pake_registered_callbacks) : [];
+
+      // Show custom menu for media, links, or if there are registered userscript menu commands
+      if (mediaInfo.isMedia || isLink || registeredCmds.length > 0) {
         event.preventDefault();
         event.stopPropagation();
 
@@ -1015,6 +1017,29 @@ document.addEventListener("DOMContentLoaded", () => {
           menuItems = buildMenuItems("link", {
             url: linkUrl,
             isFile: isDownloadableFile(linkUrl),
+          });
+        }
+
+        if (registeredCmds.length > 0) {
+          if (menuItems.length > 0) {
+            const lastItem = menuItems[menuItems.length - 1];
+            const styles = getMenuStyles();
+            lastItem.style.borderBottom = `1px solid ${styles.item.divider}`;
+            lastItem.style.paddingBottom = "12px";
+            lastItem.style.marginBottom = "6px";
+          }
+
+          registeredCmds.forEach((key) => {
+            const parts = key.split('::');
+            const displayName = parts.slice(1).join('::');
+            const fn = window.__pake_registered_callbacks[key];
+            menuItems.push(createMenuItem(displayName, () => {
+              try {
+                fn();
+              } catch (e) {
+                console.error(`[Pake Userscript] Error running menu command:`, e);
+              }
+            }));
           });
         }
 

@@ -19,7 +19,7 @@ use app::{
         toggle_userscript, open_userscript_manager, fetch_remote_script,
         save_userscript_setting, gm_xmlhttprequest, clear_menu_commands,
         register_menu_command, unregister_menu_command, get_registered_menu_commands,
-        trigger_menu_command,
+        trigger_menu_command, set_clipboard,
     },
     setup::{set_global_shortcut, set_system_tray},
     window::{open_additional_window_safe, set_window, MultiWindowState},
@@ -65,6 +65,7 @@ pub fn run_app() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init()); // Add this
 
     // Only add single instance plugin if multiple instances are not allowed
@@ -114,6 +115,7 @@ pub fn run_app() {
             unregister_menu_command,
             get_registered_menu_commands,
             trigger_menu_command,
+            set_clipboard,
         ])
         .setup(move |app| {
             app.manage(MultiWindowState::new(

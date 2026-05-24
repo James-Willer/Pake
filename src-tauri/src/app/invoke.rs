@@ -4,8 +4,9 @@ use std::io::Write;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicI64, Ordering};
 use tauri::http::Method;
-use tauri::{command, AppHandle, Manager, Url, WebviewWindow};
+use tauri::{command, AppHandle, Manager, Url, WebviewWindow, Emitter};
 use tauri_plugin_http::reqwest::{ClientBuilder, Request};
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 #[cfg(target_os = "macos")]
 use tauri::Theme;
@@ -281,6 +282,21 @@ pub struct UserScript {
     pub settings: std::collections::HashMap<String, serde_json::Value>,
     #[serde(default)]
     pub requires: Vec<String>,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub version: String,
+    #[serde(default)]
+    pub author: String,
+    #[serde(default)]
+    pub homepage: String,
+    #[serde(default)]
+    pub icon: String,
+}
+
+#[command]
+pub fn set_clipboard(app: AppHandle, data: String) -> Result<(), String> {
+    app.clipboard().write_text(data).map_err(|e| e.to_string())
 }
 
 #[command]
@@ -404,13 +420,18 @@ pub async fn fetch_remote_script(url: String) -> Result<String, String> {
 #[command]
 pub fn save_userscript_setting(
     app: AppHandle,
+    window: WebviewWindow,
     script_id: String,
     key: String,
     value: serde_json::Value,
 ) -> Result<(), String> {
     let mut scripts = get_userscripts(app.clone())?;
     if let Some(pos) = scripts.iter().position(|s| s.id == script_id) {
-        scripts[pos].settings.insert(key, value);
+        if value.is_null() {
+            scripts[pos].settings.remove(&key);
+        } else {
+            scripts[pos].settings.insert(key.clone(), value.clone());
+        }
         
         let (_, tauri_config) = crate::util::get_pake_config();
         let package_name = tauri_config.product_name.clone().unwrap_or_else(|| "pake".to_string());
@@ -419,6 +440,13 @@ pub fn save_userscript_setting(
         
         let content = serde_json::to_string_pretty(&scripts).map_err(|e| e.to_string())?;
         fs::write(file_path, content).map_err(|e| e.to_string())?;
+
+        let _ = app.emit("userscript-setting-changed", serde_json::json!({
+            "script_id": script_id,
+            "key": key,
+            "value": value,
+            "sender": window.label()
+        }));
     }
     Ok(())
 }

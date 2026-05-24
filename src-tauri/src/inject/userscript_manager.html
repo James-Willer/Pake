@@ -1,932 +1,730 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Userscript Manager</title>
-  <style>
-    :root {
-      --bg: #000000;
-      --panel: #121214;
-      --panel-border: #222226;
-      --text: #f1f5f9;
-      --text-muted: #8e9cae;
-      --primary: #4f46e5;
-      --primary-hover: #4338ca;
-      --success: #10b981;
-      --danger: #ef4444;
-      --danger-hover: #dc2626;
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --font-mono: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Userscript Manager</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --panel: #161b22;
+        --panel-border: #30363d;
+        --text: #c9d1d9;
+        --text-muted: #8b949e;
+        --primary: #238636;
+        --primary-hover: #2ea043;
+        --danger: #da3633;
+        --danger-hover: #f85149;
+        --accent: #58a6ff;
+        --font-sans:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+          sans-serif;
+        --font-mono:
+          ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
+          Liberation Mono, monospace;
+      }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    body {
-      background-color: var(--bg);
-      color: var(--text);
-      font-family: var(--font-sans);
-      overflow-x: hidden;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
 
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem 2rem;
-      border-bottom: 1px solid var(--panel-border);
-      background: #000000;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1.5rem;
+        background: var(--panel);
+        border-bottom: 1px solid var(--panel-border);
+        z-index: 10;
+      }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      h1 {
+        font-size: 1rem;
+        font-weight: 600;
+      }
 
-    .logo-container {
-      background: var(--panel-border);
-      width: 32px;
-      height: 32px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+      .nav-tabs {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .tab-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .tab-btn:hover {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .tab-btn.active {
+        color: #fff;
+        background: #21262d;
+        border-color: var(--panel-border);
+      }
 
-    .logo-container svg {
-      width: 18px;
-      height: 18px;
-      fill: var(--text);
-    }
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .tab-content {
+        display: none;
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+      }
+      .tab-content.active {
+        display: flex;
+        flex-direction: column;
+      }
 
-    h1 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #fff;
-    }
+      /* Scripts List */
+      .script-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1rem;
+      }
+      .script-card {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        position: relative;
+      }
+      .script-card:hover {
+        border-color: var(--accent);
+      }
+      .script-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .script-meta {
+        flex: 1;
+      }
+      .script-name {
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--accent);
+        margin-bottom: 0.25rem;
+      }
+      .script-desc {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        line-height: 1.4;
+      }
+      .script-info-row {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+      }
 
-    .nav-tabs {
-      display: flex;
-      gap: 0.25rem;
-      background: #121214;
-      padding: 0.2rem;
-      border-radius: 6px;
-      border: 1px solid var(--panel-border);
-    }
+      .script-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: auto;
+        border-top: 1px solid var(--panel-border);
+        padding-top: 0.75rem;
+      }
+      .btn {
+        padding: 0.4rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        border: 1px solid var(--panel-border);
+        background: #21262d;
+        color: var(--text);
+        transition: all 0.2s;
+      }
+      .btn:hover {
+        background: #30363d;
+      }
+      .btn-primary {
+        background: var(--primary);
+        border-color: rgba(240, 246, 252, 0.1);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: var(--primary-hover);
+      }
+      .btn-danger {
+        color: #f85149;
+      }
+      .btn-danger:hover {
+        background: var(--danger);
+        color: #fff;
+      }
 
-    .tab-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      padding: 0.4rem 0.8rem;
-      border-radius: 4px;
-      font-family: var(--font-sans);
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
+      /* Toggle Switch */
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 36px;
+        height: 20px;
+      }
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #30363d;
+        transition: 0.4s;
+        border-radius: 20px;
+      }
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+      input:checked + .slider {
+        background-color: var(--accent);
+      }
+      input:checked + .slider:before {
+        transform: translateX(16px);
+      }
 
-    .tab-btn:hover {
-      color: var(--text);
-    }
+      /* Editor */
+      #editor-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      #script-editor {
+        flex: 1;
+        background: #0d1117;
+        color: #e6edf3;
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 1rem;
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        resize: none;
+        outline: none;
+      }
+      .editor-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
 
-    .tab-btn.active {
-      color: #fff;
-      background: var(--primary);
-    }
+      /* Install from URL */
+      .install-box {
+        max-width: 600px;
+        margin: 2rem auto;
+        background: var(--panel);
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid var(--panel-border);
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .input-group label {
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      input[type="text"] {
+        background: #0d1117;
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 0.6rem 0.8rem;
+        color: var(--text);
+        outline: none;
+      }
+      input[type="text"]:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+      }
 
-    main {
-      flex: 1;
-      padding: 2rem;
-      max-width: 900px;
-      margin: 0 auto;
-      width: 100%;
-    }
+      /* Modal */
+      .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      }
+      .modal.active {
+        display: flex;
+      }
+      .modal-content {
+        background: var(--bg);
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 500px;
+        padding: 2rem;
+      }
 
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    .script-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .script-card {
-      background: var(--panel);
-      border: 1px solid var(--panel-border);
-      border-radius: 8px;
-      padding: 1rem 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .script-card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
-    }
-
-    .script-commands-section {
-      border-top: 1px solid var(--panel-border);
-      padding-top: 0.75rem;
-      display: none;
-      flex-direction: column;
-      gap: 0.5rem;
-      width: 100%;
-    }
-
-    .script-commands-title {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .script-commands-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-
-    .command-btn {
-      background: #1e1e24;
-      border: 1px solid #2d2d34;
-      color: #f1f5f9;
-      padding: 0.35rem 0.75rem;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-family: var(--font-sans);
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
-    }
-
-    .command-btn:hover {
-      background: var(--primary);
-      border-color: transparent;
-      color: #fff;
-    }
-
-    .script-info {
-      flex: 1;
-      min-width: 0;
-      padding-right: 1.5rem;
-    }
-
-    .script-name {
-      font-weight: 600;
-      font-size: 1rem;
-      margin-bottom: 0.35rem;
-      color: #fff;
-    }
-
-    .script-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    .script-tag {
-      background: #1e1e24;
-      padding: 0.1rem 0.4rem;
-      border-radius: 4px;
-      border: 1px solid #2d2d34;
-      max-width: 250px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .script-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 42px;
-      height: 22px;
-    }
-
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #222226;
-      transition: .2s;
-      border-radius: 22px;
-      border: 1px solid var(--panel-border);
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 14px;
-      width: 14px;
-      left: 3px;
-      bottom: 3px;
-      background-color: #777;
-      transition: .2s;
-      border-radius: 50%;
-    }
-
-    input:checked + .slider {
-      background-color: var(--success);
-      border-color: transparent;
-    }
-
-    input:checked + .slider:before {
-      transform: translateX(20px);
-      background-color: #fff;
-    }
-
-    .icon-btn {
-      background: #121214;
-      border: 1px solid var(--panel-border);
-      color: var(--text-muted);
-      width: 32px;
-      height: 32px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-
-    .icon-btn:hover {
-      background: #222226;
-      color: #fff;
-      border-color: #444;
-    }
-
-    .icon-btn.delete:hover {
-      background: rgba(239, 68, 68, 0.1);
-      border-color: var(--danger);
-      color: var(--danger);
-    }
-
-    .form-group {
-      margin-bottom: 1.25rem;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 0.4rem;
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: var(--text-muted);
-    }
-
-    .input-row {
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    input[type="text"] {
-      flex: 1;
-      background: #121214;
-      border: 1px solid var(--panel-border);
-      border-radius: 6px;
-      color: #fff;
-      padding: 0.6rem 0.8rem;
-      font-family: var(--font-sans);
-      font-size: 0.85rem;
-    }
-
-    input[type="text"]:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-
-    .btn {
-      background: var(--primary);
-      color: #fff;
-      border: none;
-      padding: 0.6rem 1.2rem;
-      border-radius: 6px;
-      font-family: var(--font-sans);
-      font-weight: 500;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: background 0.15s;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .btn:hover {
-      background: var(--primary-hover);
-    }
-
-    .btn-secondary {
-      background: #121214;
-      border: 1px solid var(--panel-border);
-      color: var(--text);
-    }
-
-    .btn-secondary:hover {
-      background: #222226;
-    }
-
-    .editor-container {
-      border: 1px solid var(--panel-border);
-      border-radius: 8px;
-      overflow: hidden;
-      background: #000;
-    }
-
-    .editor-header {
-      background: #121214;
-      padding: 0.4rem 0.8rem;
-      border-bottom: 1px solid var(--panel-border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    textarea {
-      width: 100%;
-      height: 380px;
-      background: transparent;
-      border: none;
-      color: #f8fafc;
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      padding: 0.8rem;
-      resize: vertical;
-      line-height: 1.4;
-      outline: none;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 3rem 1.5rem;
-      background: var(--panel);
-      border: 1px dashed var(--panel-border);
-      border-radius: 8px;
-      color: var(--text-muted);
-    }
-
-    .empty-state svg {
-      width: 40px;
-      height: 40px;
-      stroke: var(--text-muted);
-      margin-bottom: 0.75rem;
-      opacity: 0.5;
-    }
-
-    .empty-state h3 {
-      color: #fff;
-      font-size: 0.95rem;
-      margin-bottom: 0.25rem;
-    }
-
-    .toast {
-      position: fixed;
-      bottom: 2rem;
-      right: 2rem;
-      background: #121214;
-      border: 1px solid var(--panel-border);
-      padding: 0.75rem 1.25rem;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      transform: translateY(100px);
-      opacity: 0;
-      transition: transform 0.2s, opacity 0.2s;
-      z-index: 100;
-      font-size: 0.85rem;
-    }
-
-    .toast.show {
-      transform: translateY(0);
-      opacity: 1;
-    }
-
-    .toast-success {
-      border-left: 3px solid var(--success);
-    }
-
-    .toast-error {
-      border-left: 3px solid var(--danger);
-    }
-
-    .icon {
-      width: 16px;
-      height: 16px;
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <div class="brand">
-      <div class="logo-container">
-        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      .toast {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        transform: translateY(100px);
+        transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        z-index: 200;
+      }
+      .toast.active {
+        transform: translateY(0);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <svg
+          height="24"
+          viewBox="0 0 16 16"
+          version="1.1"
+          width="24"
+          fill="var(--accent)"
+        >
+          <path
+            d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 01-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 010 8c0-4.42 3.58-8 8-8Z"
+          ></path>
+        </svg>
+        <h1>ScriptCat @ Pake</h1>
       </div>
-      <div>
-        <h1>Userscripts</h1>
+      <div class="nav-tabs">
+        <button class="tab-btn active" data-tab="scripts">Scripts</button>
+        <button class="tab-btn" data-tab="editor">Editor</button>
+        <button class="tab-btn" data-tab="install">Install</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
       </div>
-    </div>
+    </header>
 
-    <div class="nav-tabs">
-      <button class="tab-btn active" onclick="switchTab('list')">Installed</button>
-      <button class="tab-btn" onclick="switchTab('create')">New Script</button>
-    </div>
-  </header>
-
-  <main>
-    <section id="tab-list" class="tab-content active">
-      <div id="script-list-container" class="script-list"></div>
-    </section>
-
-    <section id="tab-create" class="tab-content">
-      <div class="form-group">
-        <label for="remote-url">Install from URL (GreasyFork, GitHub, etc.)</label>
-        <div class="input-row">
-          <input type="text" id="remote-url" placeholder="https://example.com/script.user.js">
-          <button class="btn" onclick="fetchRemoteScript()">Fetch & Load</button>
+    <main>
+      <div id="scripts" class="tab-content active">
+        <div class="script-grid" id="script-list">
+          <!-- Scripts will be injected here -->
         </div>
       </div>
 
-      <div class="form-group">
-        <label for="script-name">Script Name</label>
-        <input type="text" id="script-name" placeholder="My Awesome Userscript" style="width: 100%;">
-      </div>
-
-      <div class="form-group">
-        <label>Script Source Code (include UserScript metadata block)</label>
-        <div class="editor-container">
-          <div class="editor-header">
-            <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">JavaScript</span>
+      <div id="editor" class="tab-content">
+        <div id="editor-container">
+          <div class="editor-toolbar">
+            <input
+              type="text"
+              id="editor-script-name"
+              placeholder="Script Name"
+              style="flex: 1; margin-right: 1rem"
+            />
+            <button class="btn btn-primary" id="save-script">
+              Save Script
+            </button>
           </div>
-          <textarea id="script-code" spellcheck="false" placeholder="// ==UserScript==
-// @name         New Userscript
+          <textarea
+            id="script-editor"
+            placeholder="// ==UserScript==
+// @name         New Script
+// @namespace    http://tampermonkey.net/
+// @version      0.1
+// @description  try to take over the world!
+// @author       You
 // @match        *://*/*
-// @run-at       document-end
+// @grant        none
 // ==/UserScript==
 
-console.log('Hello World!');"></textarea>
+(function() {
+    'use strict';
+    // Your code here...
+})();"
+          ></textarea>
         </div>
       </div>
 
-      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-        <button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
-        <button class="btn" id="save-btn" onclick="saveScript()">Save Script</button>
-      </div>
-    </section>
-  </main>
-
-  <div id="toast" class="toast">
-    <div id="toast-message">Action completed</div>
-  </div>
-
-  <script>
-    let activeScripts = [];
-    let editingScriptId = null;
-
-    document.addEventListener('DOMContentLoaded', () => {
-      loadScripts();
-    });
-
-    async function invokeTauri(cmd, args = {}) {
-      try {
-        if (window.__TAURI__ && window.__TAURI__.core) {
-          return await window.__TAURI__.core.invoke(cmd, args);
-        } else {
-          console.warn(`[Tauri Mock] Invoke called: ${cmd}`, args);
-          if (cmd === 'get_userscripts') return activeScripts;
-          return null;
-        }
-      } catch (err) {
-        showToast(err.toString(), 'error');
-        throw err;
-      }
-    }
-
-    let registeredCommands = [];
-
-    async function loadScripts() {
-      try {
-        activeScripts = await invokeTauri('get_userscripts') || [];
-        try {
-          registeredCommands = await invokeTauri('get_registered_menu_commands') || [];
-        } catch (e) {
-          console.error("Failed to load registered commands:", e);
-        }
-        renderScriptsList();
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    function renderScriptsList() {
-      const container = document.getElementById('script-list-container');
-      if (activeScripts.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            <h3>No Scripts Installed</h3>
-            <p style="margin-top:0.25rem;">Install a script from a URL or write your own custom code.</p>
+      <div id="install" class="tab-content">
+        <div class="install-box">
+          <h2>Install from URL</h2>
+          <div class="input-group">
+            <label>Userscript URL</label>
+            <input
+              type="text"
+              id="install-url"
+              placeholder="https://example.com/script.user.js"
+            />
           </div>
-        `;
-        return;
+          <button class="btn btn-primary" id="fetch-script">
+            Fetch & Install
+          </button>
+          <div
+            id="install-preview"
+            style="
+              display: none;
+              border-top: 1px solid var(--panel-border);
+              padding-top: 1rem;
+            "
+          >
+            <h3
+              id="preview-name"
+              style="color: var(--accent); margin-bottom: 0.5rem"
+            ></h3>
+            <p
+              id="preview-desc"
+              style="font-size: 0.9rem; margin-bottom: 1rem"
+            ></p>
+            <div class="script-info-row">
+              <span id="preview-version"></span>
+              <span id="preview-author"></span>
+            </div>
+            <button
+              class="btn btn-primary"
+              id="confirm-install"
+              style="margin-top: 1rem; width: 100%"
+            >
+              Confirm Installation
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="settings" class="tab-content">
+        <div class="install-box">
+          <h2>Global Settings</h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem">
+            Global configuration for userscripts in Pake.
+          </p>
+          <div
+            class="input-group"
+            style="
+              flex-direction: row;
+              align-items: center;
+              justify-content: space-between;
+            "
+          >
+            <label>Experimental Sandbox</label>
+            <label class="switch">
+              <input type="checkbox" checked disabled />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div
+            class="input-group"
+            style="
+              flex-direction: row;
+              align-items: center;
+              justify-content: space-between;
+            "
+          >
+            <label>Show Notifications</label>
+            <label class="switch">
+              <input type="checkbox" checked />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div id="toast" class="toast">Action completed successfully</div>
+
+    <script>
+      const { invoke } = window.__TAURI__.core;
+      let currentScripts = [];
+      let editingScriptId = null;
+
+      // Tab Switching
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab-btn")
+            .forEach((b) => b.classList.remove("active"));
+          document
+            .querySelectorAll(".tab-content")
+            .forEach((c) => c.classList.remove("active"));
+          btn.classList.add("active");
+          document.getElementById(btn.dataset.tab).classList.add("active");
+          if (btn.dataset.tab === "scripts") loadScripts();
+        });
+      });
+
+      function showToast(msg, duration = 3000) {
+        const toast = document.getElementById("toast");
+        toast.textContent = msg;
+        toast.classList.add("active");
+        setTimeout(() => toast.classList.remove("active"), duration);
       }
 
-      function parseMatches(code) {
-        const matches = [];
-        const match = code.match(/\/\/\s*==UserScript==([\s\S]*?)\/\/\s*==\/UserScript==/);
-        if (!match) return ['* (All pages)'];
-        
-        const lines = match[1].split('\n');
-        for (const line of lines) {
-          const parts = line.match(/\/\/\s*@(match|include)\s+(.+)$/);
-          if (parts) {
-            matches.push(parts[2].trim());
+      function parseMetadata(code) {
+        const metadata = {
+          name: "Unnamed Script",
+          version: "0.1",
+          description: "",
+          author: "",
+          homepage: "",
+          icon: "",
+          matches: [],
+          requires: [],
+          resources: {},
+        };
+        const match = code.match(
+          /\/\/\s*==UserScript==([\s\S]*?)\/\/\s*==\/UserScript==/,
+        );
+        if (!match) return metadata;
+        match[1].split("\n").forEach((line) => {
+          const p = line.match(/\/\/\s*@(\S+)\s+(.+)$/);
+          if (p) {
+            const k = p[1].trim(),
+              v = p[2].trim();
+            if (k === "name") metadata.name = v;
+            else if (k === "version") metadata.version = v;
+            else if (k === "description") metadata.description = v;
+            else if (k === "author") metadata.author = v;
+            else if (k === "homepage" || k === "website") metadata.homepage = v;
+            else if (k === "icon") metadata.icon = v;
+            else if (k === "match" || k === "include") metadata.matches.push(v);
+            else if (k === "require") metadata.requires.push(v);
+            else if (k === "resource") {
+              const r = v.match(/^(\S+)\s+(.+)$/);
+              if (r) metadata.resources[r[1]] = r[2];
+            }
           }
-        }
-        return matches.length > 0 ? matches : ['* (All pages)'];
+        });
+        return metadata;
       }
 
-      container.innerHTML = activeScripts.map(script => {
-        const matches = parseMatches(script.code);
-        return `
-          <div class="script-card">
-            <div class="script-card-header">
-              <div class="script-info">
-                <div class="script-name">${escapeHtml(script.name)}</div>
-                <div class="script-meta">
-                  ${matches.map(m => `<span class="script-tag" title="${escapeHtml(m)}">${escapeHtml(m)}</span>`).join('')}
-                </div>
-              </div>
-              <div class="script-actions">
-                <label class="switch">
-                  <input type="checkbox" ${script.enabled ? 'checked' : ''} onchange="toggleScript('${script.id}', this.checked)">
-                  <span class="slider"></span>
-                </label>
-                <button class="icon-btn" onclick="startEdit('${script.id}')" title="Edit Script">
-                  <svg viewBox="0 0 24 24" class="icon" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                </button>
-                <button class="icon-btn delete" onclick="deleteScript('${script.id}')" title="Delete Script">
-                  <svg viewBox="0 0 24 24" class="icon" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                </button>
+      async function loadScripts() {
+        try {
+          currentScripts = await invoke("get_userscripts");
+          renderScripts();
+        } catch (e) {
+          showToast("Error loading scripts: " + e);
+        }
+      }
+
+      function renderScripts() {
+        const list = document.getElementById("script-list");
+        list.innerHTML = currentScripts.length
+          ? ""
+          : '<p style="text-align: center; color: var(--text-muted); grid-column: 1/-1; margin-top: 3rem;">No scripts installed yet.</p>';
+
+        currentScripts.forEach((script) => {
+          const card = document.createElement("div");
+          card.className = "script-card";
+          card.innerHTML = `
+          <div class="script-header">
+            <div class="script-meta">
+              <div class="script-name">${script.name}</div>
+              <div class="script-desc">${script.description || "No description provided."}</div>
+              <div class="script-info-row">
+                <span>v${script.version || "0.1"}</span>
+                ${script.author ? `<span>by ${script.author}</span>` : ""}
               </div>
             </div>
-            <div class="script-commands-section" id="commands-${script.id}"></div>
+            <label class="switch">
+              <input type="checkbox" ${script.enabled ? "checked" : ""} onchange="toggleScript('${script.id}', this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="script-actions">
+            <button class="btn" onclick="editScript('${script.id}')">Edit</button>
+            <button class="btn btn-danger" onclick="deleteScript('${script.id}')">Delete</button>
           </div>
         `;
-      }).join('');
-
-      renderMenuCommandsOnly();
-    }
-
-    function renderMenuCommandsOnly() {
-      activeScripts.forEach(script => {
-        const cmdContainer = document.getElementById(`commands-${script.id}`);
-        if (!cmdContainer) return;
-
-        const scriptCmds = registeredCommands.filter(c => c.script_id === script.id);
-        if (scriptCmds.length === 0) {
-          cmdContainer.style.display = 'none';
-          cmdContainer.innerHTML = '';
-          return;
-        }
-
-        cmdContainer.style.display = 'flex';
-        cmdContainer.innerHTML = `
-          <div class="script-commands-title">Settings & Commands</div>
-          <div class="script-commands-list">
-            ${scriptCmds.map(cmd => `
-              <button class="command-btn" onclick="triggerCommand('${script.id}', '${escapeHtml(cmd.name)}')">
-                ${escapeHtml(cmd.name)}
-              </button>
-            `).join('')}
-          </div>
-        `;
-      });
-    }
-
-    async function triggerCommand(scriptId, name) {
-      try {
-        await invokeTauri('trigger_menu_command', { scriptId, name });
-        showToast(`Triggered: ${name}`, 'success');
-      } catch (e) {
-        console.error(e);
+          list.appendChild(card);
+        });
       }
-    }
 
-    // Periodically update active commands
-    setInterval(async () => {
-      if (document.getElementById('tab-list').classList.contains('active')) {
+      window.toggleScript = async (id, enabled) => {
         try {
-          registeredCommands = await invokeTauri('get_registered_menu_commands') || [];
-          renderMenuCommandsOnly();
-        } catch (e) {}
-      }
-    }, 1500);
-
-    async function toggleScript(id, enabled) {
-      try {
-        await invokeTauri('toggle_userscript', { id, enabled });
-        const script = activeScripts.find(s => s.id === id);
-        if (script) script.enabled = enabled;
-        showToast(`${script ? script.name : 'Script'} ${enabled ? 'enabled' : 'disabled'}`, 'success');
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    async function deleteScript(id) {
-      if (!confirm('Are you sure you want to delete this script?')) return;
-      try {
-        await invokeTauri('delete_userscript', { id });
-        activeScripts = activeScripts.filter(s => s.id !== id);
-        renderScriptsList();
-        showToast('Script deleted successfully', 'success');
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    function startEdit(id) {
-      const script = activeScripts.find(s => s.id === id);
-      if (!script) return;
-      editingScriptId = id;
-      document.getElementById('script-name').value = script.name;
-      document.getElementById('script-code').value = script.code;
-      document.getElementById('save-btn').textContent = 'Update Script';
-      switchTab('create');
-    }
-
-    function cancelEdit() {
-      resetForm();
-      switchTab('list');
-    }
-
-    function resetForm() {
-      editingScriptId = null;
-      document.getElementById('script-name').value = '';
-      document.getElementById('script-code').value = `// ==UserScript==
-// @name         New Userscript
-// @match        *://*/*
-// @run-at       document-end
-// ==/UserScript==
-
-console.log('Hello World!');`;
-      document.getElementById('remote-url').value = '';
-      document.getElementById('save-btn').textContent = 'Save Script';
-    }
-
-    function parseResources(code) {
-      const resources = {};
-      const match = code.match(/\/\/\s*==UserScript==([\s\S]*?)\/\/\s*==\/UserScript==/);
-      if (!match) return resources;
-      
-      const lines = match[1].split('\n');
-      for (const line of lines) {
-        const parts = line.match(/\/\/\s*@resource\s+(\S+)\s+(.+)$/);
-        if (parts) {
-          const name = parts[1].trim();
-          const url = parts[2].trim();
-          resources[name] = url;
+          await invoke("toggle_userscript", { id, enabled });
+          showToast(`Script ${enabled ? "enabled" : "disabled"}`);
+        } catch (e) {
+          showToast("Error toggling script: " + e);
         }
-      }
-      return resources;
-    }
-
-    function parseRequires(code) {
-      const requires = [];
-      const match = code.match(/\/\/\s*==UserScript==([\s\S]*?)\/\/\s*==\/UserScript==/);
-      if (!match) return requires;
-      
-      const lines = match[1].split('\n');
-      for (const line of lines) {
-        const parts = line.match(/\/\/\s*@require\s+(.+)$/);
-        if (parts) {
-          requires.push(parts[1].trim());
-        }
-      }
-      return requires;
-    }
-
-    async function saveScript() {
-      const name = document.getElementById('script-name').value.trim();
-      const code = document.getElementById('script-code').value;
-      if (!name) {
-        showToast('Script Name is required', 'error');
-        return;
-      }
-
-      const id = editingScriptId || generateId();
-      const newScript = {
-        id,
-        name,
-        code,
-        enabled: true,
-        resources: {},
-        settings: {},
-        requires: []
       };
 
-      if (editingScriptId) {
-        const existing = activeScripts.find(s => s.id === editingScriptId);
-        if (existing) {
-          newScript.settings = existing.settings || {};
-          newScript.resources = existing.resources || {};
-          newScript.requires = existing.requires || [];
+      window.deleteScript = async (id) => {
+        if (!confirm("Are you sure you want to delete this script?")) return;
+        try {
+          await invoke("delete_userscript", { id });
+          showToast("Script deleted");
+          loadScripts();
+        } catch (e) {
+          showToast("Error deleting script: " + e);
         }
-      }
+      };
 
-      const resourceUrls = parseResources(code);
-      const resourceNames = Object.keys(resourceUrls);
-      if (resourceNames.length > 0) {
-        showToast('Downloading resources...', 'success');
-        for (const resName of resourceNames) {
-          const resUrl = resourceUrls[resName];
+      window.editScript = (id) => {
+        const script = currentScripts.find((s) => s.id === id);
+        if (!script) return;
+        editingScriptId = id;
+        document.getElementById("editor-script-name").value = script.name;
+        document.getElementById("script-editor").value = script.code;
+        document.querySelector('[data-tab="editor"]').click();
+      };
+
+      document
+        .getElementById("save-script")
+        .addEventListener("click", async () => {
+          const code = document.getElementById("script-editor").value;
+          const meta = parseMetadata(code);
+          const id = editingScriptId || Date.now().toString();
+
+          const scriptData = {
+            id,
+            name: meta.name,
+            code,
+            enabled: true,
+            description: meta.description,
+            version: meta.version,
+            author: meta.author,
+            homepage: meta.homepage,
+            icon: meta.icon,
+            requires: meta.requires,
+            resources: {},
+            settings: {},
+          };
+
           try {
-            let resText = '';
-            if (window.__TAURI__) {
-              resText = await invokeTauri('fetch_remote_script', { url: resUrl });
-            } else {
-              const resResponse = await fetch(resUrl);
-              resText = await resResponse.text();
-            }
-            newScript.resources[resName] = resText;
-          } catch (err) {
-            console.error(`Failed to download resource ${resName} from ${resUrl}:`, err);
-            showToast(`Warning: failed to download resource: ${resName}`, 'error');
+            await invoke("save_userscript", { script: scriptData });
+            showToast("Script saved successfully");
+            editingScriptId = null;
+            loadScripts();
+            document.querySelector('[data-tab="scripts"]').click();
+          } catch (e) {
+            showToast("Error saving script: " + e);
           }
-        }
-      }
+        });
 
-      const requireUrls = parseRequires(code);
-      if (requireUrls.length > 0) {
-        showToast('Downloading required libraries...', 'success');
-        newScript.requires = [];
-        for (const reqUrl of requireUrls) {
-          const cleanUrl = reqUrl.split('#')[0];
+      let fetchedCode = "";
+      document
+        .getElementById("fetch-script")
+        .addEventListener("click", async () => {
+          const url = document.getElementById("install-url").value;
+          if (!url) return showToast("Please enter a URL");
+
           try {
-            let reqText = '';
-            if (window.__TAURI__) {
-              reqText = await invokeTauri('fetch_remote_script', { url: cleanUrl });
-            } else {
-              const reqResponse = await fetch(cleanUrl);
-              reqText = await reqResponse.text();
-            }
-            newScript.requires.push(reqText);
-          } catch (err) {
-            console.error(`Failed to download require ${reqUrl}:`, err);
-            showToast(`Warning: failed to download required library`, 'error');
+            showToast("Fetching script...");
+            fetchedCode = await invoke("fetch_remote_script", { url });
+            const meta = parseMetadata(fetchedCode);
+
+            document.getElementById("preview-name").textContent = meta.name;
+            document.getElementById("preview-desc").textContent =
+              meta.description;
+            document.getElementById("preview-version").textContent =
+              "Version: " + meta.version;
+            document.getElementById("preview-author").textContent = meta.author
+              ? "Author: " + meta.author
+              : "";
+            document.getElementById("install-preview").style.display = "block";
+          } catch (e) {
+            showToast("Error fetching script: " + e);
           }
-        }
-      }
+        });
 
-      try {
-        await invokeTauri('save_userscript', { script: newScript });
-        showToast(editingScriptId ? 'Script updated successfully' : 'Script saved successfully', 'success');
-        resetForm();
-        await loadScripts();
-        switchTab('list');
-      } catch (e) {
-        console.error(e);
-      }
-    }
+      document
+        .getElementById("confirm-install")
+        .addEventListener("click", async () => {
+          const meta = parseMetadata(fetchedCode);
+          showToast("Installing script and dependencies...");
 
-    async function fetchRemoteScript() {
-      const url = document.getElementById('remote-url').value.trim();
-      if (!url) {
-        showToast('Please enter a script URL', 'error');
-        return;
-      }
+          const requires = [];
+          for (const url of meta.requires) {
+            try {
+              const code = await invoke("fetch_remote_script", { url });
+              requires.push(code);
+            } catch (e) {
+              console.warn("Failed to fetch require:", url, e);
+            }
+          }
 
-      showToast('Fetching script...', 'success');
-      try {
-        let text = '';
-        if (window.__TAURI__) {
-          text = await invokeTauri('fetch_remote_script', { url });
-        } else {
-          const response = await fetch(url);
-          text = await response.text();
-        }
+          const resources = {};
+          for (const [name, url] of Object.entries(meta.resources)) {
+            try {
+              const content = await invoke("fetch_remote_script", { url });
+              resources[name] = content;
+            } catch (e) {
+              console.warn("Failed to fetch resource:", name, url, e);
+            }
+          }
 
-        if (!text) throw new Error('Empty response');
+          const scriptData = {
+            id: Date.now().toString(),
+            name: meta.name,
+            code: fetchedCode,
+            enabled: true,
+            description: meta.description,
+            version: meta.version,
+            author: meta.author,
+            homepage: meta.homepage,
+            icon: meta.icon,
+            requires: requires,
+            resources: resources,
+            settings: {},
+          };
 
-        let name = 'Imported Script';
-        const nameMatch = text.match(/\/\/\s*@name\s+(.+)$/m);
-        if (nameMatch) {
-          name = nameMatch[1].trim();
-        }
+          try {
+            await invoke("save_userscript", { script: scriptData });
+            showToast("Script installed successfully");
+            document.getElementById("install-preview").style.display = "none";
+            document.getElementById("install-url").value = "";
+            loadScripts();
+            document.querySelector('[data-tab="scripts"]').click();
+          } catch (e) {
+            showToast("Error installing script: " + e);
+          }
+        });
 
-        document.getElementById('script-name').value = name;
-        document.getElementById('script-code').value = text;
-        showToast('Script fetched successfully!', 'success');
-      } catch (e) {
-        console.error(e);
-        showToast('Failed to fetch script: CORS or connection error. Try copying it manually.', 'error');
-      }
-    }
-
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-      if (tab === 'list') {
-        document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
-        document.getElementById('tab-list').classList.add('active');
-      } else {
-        document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
-        document.getElementById('tab-create').classList.add('active');
-      }
-    }
-
-    function showToast(message, type = 'success') {
-      const toast = document.getElementById('toast');
-      const msg = document.getElementById('toast-message');
-      msg.textContent = message;
-      
-      toast.className = 'toast show toast-' + type;
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 3000);
-    }
-
-    function generateId() {
-      return Math.random().toString(36).substring(2, 9);
-    }
-
-    function escapeHtml(string) {
-      const matchHtmlRegExp = /["'&<>]/;
-      const str = '' + string;
-      const match = matchHtmlRegExp.exec(str);
-      if (!match) return str;
-      let escape;
-      let html = '';
-      let index = 0;
-      let lastIndex = 0;
-      for (index = match.index; index < str.length; index++) {
-        switch (str.charCodeAt(index)) {
-          case 34: // "
-            escape = '&quot;';
-            break;
-          case 38: // &
-            escape = '&amp;';
-            break;
-          case 39: // '
-            escape = '&#39;';
-            break;
-          case 60: // <
-            escape = '&lt;';
-            break;
-          case 62: // >
-            escape = '&gt;';
-            break;
-          default:
-            continue;
-        }
-        if (lastIndex !== index) {
-          html += str.substring(lastIndex, index);
-        }
-        lastIndex = index + 1;
-        html += escape;
-      }
-      return lastIndex !== index
-        ? html + str.substring(lastIndex, index)
-        : html;
-    }
-  </script>
-</body>
+      // Initial load
+      loadScripts();
+    </script>
+  </body>
 </html>
