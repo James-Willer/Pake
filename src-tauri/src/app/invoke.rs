@@ -289,6 +289,8 @@ pub struct UserScript {
     #[serde(default)]
     pub author: String,
     #[serde(default)]
+    pub namespace: String,
+    #[serde(default)]
     pub homepage: String,
     #[serde(default)]
     pub icon: String,
